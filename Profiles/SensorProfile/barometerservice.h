@@ -1,12 +1,12 @@
 /**************************************************************************************************
-  Filename:       Ketamin.h
-  Revised:        $Date: 2010-08-01 14:03:16 -0700 (Sun, 01 Aug 2010) $
-  Revision:       $Revision: 23256 $
+  Filename:       barometerservice.h
+  Revised:        $Date: 2013-08-23 11:45:31 -0700 (Fri, 23 Aug 2013) $
+  Revision:       $Revision: 35100 $
 
-  Description:    This file contains the Simple BLE Peripheral sample application
-                  definitions and prototypes.
+  Description:    Barometer service definitions and prototypes
 
-  Copyright 2010 - 2011 Texas Instruments Incorporated. All rights reserved.
+
+  Copyright 2012-2013  Texas Instruments Incorporated. All rights reserved.
 
   IMPORTANT: Your use of this Software is limited to those specific rights
   granted under the terms of a software license agreement between the user
@@ -37,8 +37,8 @@
   contact Texas Instruments Incorporated at www.TI.com.
 **************************************************************************************************/
 
-#ifndef Ketamine_H
-#define Ketamine_H
+#ifndef BAROMETERSERVICE_H
+#define BAROMETERSERVICE_H
 
 #ifdef __cplusplus
 extern "C"
@@ -48,52 +48,78 @@ extern "C"
 /*********************************************************************
  * INCLUDES
  */
-#include "bcomdef.h"
-#include "peripheral.h"
+#include "st_util.h"
+  
 /*********************************************************************
  * CONSTANTS
  */
 
+// Service UUID
+#define BAROMETER_SERV_UUID             0xAA40  // F000AA40-0451-4000-B000-00000000-0000
+#define BAROMETER_DATA_UUID             0xAA41
+#define BAROMETER_CONF_UUID             0xAA42
+#define BAROMETER_CALI_UUID             0xAA43
+#define BAROMETER_PERI_UUID             0xAA44
 
-// Simple BLE Peripheral Task Events
-#define KTM_START_DEVICE_EVT                              0x0001
-#define KTM_DEFAULT_EVT                                   0x0002
-#define KTM_PERIODIC_EVT                                  0x0004
-#define KTM_CHECKINTERRUPT_EVT                            0x0008
+// Sensor Profile Services bit fields
+#define BAROMETER_SERVICE               0x00000010
 
-   
-// State of ketamine process ID
-#define KTM_WAIT_BLOWER                                   0x0001
-#define KTM_SENSE_SALIVA                                  0x0002
-#define KTM_SENSE_COLOR                                   0x0003
-   
-// Picture taking modes
-#define KTM_PIC_PRECAPTURE                                0x01
-#define KTM_PIC_CAPTURE                                   0x02
+// Length of sensor data in bytes
+#define BAROMETER_DATA_LEN              4
+#define BAROMETER_CALI_LEN              16
+
+/*********************************************************************
+ * TYPEDEFS
+ */
 
 /*********************************************************************
  * MACROS
  */
 
 /*********************************************************************
- * FUNCTIONS
+ * API FUNCTIONS
  */
-  
-extern void OpenUART(void);
-extern void CloseUART(void);
-extern uint8 serialCameraState;
-extern uint8 waitCamera;
-extern uint8 globalState;
-extern gaprole_States_t gapProfileState;
-/*
- * Task Initialization for the BLE Application
- */
-extern void Ketamine_Init( uint8 task_id );
+
 
 /*
- * Task Event Processor for the BLE Application
+ * Barometer_AddService- Initializes the Sensor GATT Profile service by registering
+ *          GATT attributes with the GATT server.
+ *
+ * @param   services - services to add. This is a bit map and can
+ *                     contain more than one service.
  */
-extern uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events );
+extern bStatus_t Barometer_AddService( uint32 services );
+
+/*
+ * Barometer_RegisterAppCBs - Registers the application callback function.
+ *                    Only call this function once.
+ *
+ *    appCallbacks - pointer to application callbacks.
+ */
+extern bStatus_t Barometer_RegisterAppCBs( sensorCBs_t *appCallbacks );
+
+/*
+ * Barometer_SetParameter - Set a Sensor GATT Profile parameter.
+ *
+ *    param - Profile parameter ID
+ *    len - length of data to right
+ *    value - pointer to data to write.  This is dependent on
+ *          the parameter ID and WILL be cast to the appropriate
+ *          data type (example: data type of uint16 will be cast to
+ *          uint16 pointer).
+ */
+extern bStatus_t Barometer_SetParameter( uint8 param, uint8 len, void *value );
+
+/*
+ * Barometer_GetParameter - Get a Sensor GATT Profile parameter.
+ *
+ *    param - Profile parameter ID
+ *    value - pointer to data to write.  This is dependent on
+ *          the parameter ID and WILL be cast to the appropriate
+ *          data type (example: data type of uint16 will be cast to
+ *          uint16 pointer).
+ */
+extern bStatus_t Barometer_GetParameter( uint8 param, void *value );
 
 /*********************************************************************
 *********************************************************************/
@@ -102,4 +128,4 @@ extern uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events );
 }
 #endif
 
-#endif /* Ketamine_H */
+#endif /* BAROMETERSERVICE_H */

@@ -1,12 +1,12 @@
 /**************************************************************************************************
-  Filename:       Ketamin.h
-  Revised:        $Date: 2010-08-01 14:03:16 -0700 (Sun, 01 Aug 2010) $
-  Revision:       $Revision: 23256 $
+  Filename:       st_util.c
+  Revised:        $Date: 2012-09-25 06:26:26 -0700 (Tue, 25 Sep 2012) $
+  Revision:       $Revision: 31617 $
 
-  Description:    This file contains the Simple BLE Peripheral sample application
-                  definitions and prototypes.
+  Description:    Utilties for Sensor Tag services
 
-  Copyright 2010 - 2011 Texas Instruments Incorporated. All rights reserved.
+
+  Copyright 2012  Texas Instruments Incorporated. All rights reserved.
 
   IMPORTANT: Your use of this Software is limited to those specific rights
   granted under the terms of a software license agreement between the user
@@ -37,69 +37,51 @@
   contact Texas Instruments Incorporated at www.TI.com.
 **************************************************************************************************/
 
-#ifndef Ketamine_H
-#define Ketamine_H
-
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
-/*********************************************************************
+/*-------------------------------------------------------------------
  * INCLUDES
  */
 #include "bcomdef.h"
-#include "peripheral.h"
-/*********************************************************************
- * CONSTANTS
- */
+#include "gatt.h"
+#include "st_util.h"
 
-
-// Simple BLE Peripheral Task Events
-#define KTM_START_DEVICE_EVT                              0x0001
-#define KTM_DEFAULT_EVT                                   0x0002
-#define KTM_PERIODIC_EVT                                  0x0004
-#define KTM_CHECKINTERRUPT_EVT                            0x0008
-
-   
-// State of ketamine process ID
-#define KTM_WAIT_BLOWER                                   0x0001
-#define KTM_SENSE_SALIVA                                  0x0002
-#define KTM_SENSE_COLOR                                   0x0003
-   
-// Picture taking modes
-#define KTM_PIC_PRECAPTURE                                0x01
-#define KTM_PIC_CAPTURE                                   0x02
-
-/*********************************************************************
- * MACROS
- */
-
-/*********************************************************************
+/*-------------------------------------------------------------------
  * FUNCTIONS
  */
-  
-extern void OpenUART(void);
-extern void CloseUART(void);
-extern uint8 serialCameraState;
-extern uint8 waitCamera;
-extern uint8 globalState;
-extern gaprole_States_t gapProfileState;
-/*
- * Task Initialization for the BLE Application
- */
-extern void Ketamine_Init( uint8 task_id );
 
-/*
- * Task Event Processor for the BLE Application
+/*********************************************************************
+ * @fn      utilExtractUuid16
+ *
+ * @brief   Extracts a 16-bit UUID from a GATT attribute
+ *
+ * @param   pAttr - pointer to attribute
+ *
+ * @param   pUuid - pointer to UUID to be extracted
+ *
+ * @return  Success or Failure
  */
-extern uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events );
+bStatus_t utilExtractUuid16(gattAttribute_t *pAttr, uint16 *pUuid)
+{
+  bStatus_t status = SUCCESS;
+
+  if ( pAttr->type.len == ATT_BT_UUID_SIZE )
+  {
+    // 16-bit UUID direct
+    *pUuid = BUILD_UINT16( pAttr->type.uuid[0], pAttr->type.uuid[1]);
+#ifdef GATT_TI_UUID_128_BIT
+  }
+  else if (pAttr->type.len == ATT_UUID_SIZE)
+  {
+    // 16-bit UUID extracted bytes 12 and 13
+    *pUuid = BUILD_UINT16( pAttr->type.uuid[12], pAttr->type.uuid[13]);
+#endif
+  } else {
+    *pUuid = 0xFFFF;
+    status = FAILURE;
+  }
+
+  return status;
+}
 
 /*********************************************************************
 *********************************************************************/
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* Ketamine_H */

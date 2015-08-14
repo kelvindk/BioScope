@@ -1,12 +1,12 @@
 /**************************************************************************************************
-  Filename:       Ketamin.h
-  Revised:        $Date: 2010-08-01 14:03:16 -0700 (Sun, 01 Aug 2010) $
-  Revision:       $Revision: 23256 $
+  Filename:       simplekeys.h
+  Revised:        $Date: 2010-10-01 14:14:58 -0700 (Fri, 01 Oct 2010) $
+  Revision:       $Revision: 23960 $
 
-  Description:    This file contains the Simple BLE Peripheral sample application
-                  definitions and prototypes.
+  Description:    This file contains the Simple Keys Profile header file.
 
-  Copyright 2010 - 2011 Texas Instruments Incorporated. All rights reserved.
+
+  Copyright 2010 Texas Instruments Incorporated. All rights reserved.
 
   IMPORTANT: Your use of this Software is limited to those specific rights
   granted under the terms of a software license agreement between the user
@@ -22,8 +22,8 @@
   its documentation for any purpose.
 
   YOU FURTHER ACKNOWLEDGE AND AGREE THAT THE SOFTWARE AND DOCUMENTATION ARE
-  PROVIDED “AS IS” WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED,
-  INCLUDING WITHOUT LIMITATION, ANY WARRANTY OF MERCHANTABILITY, TITLE,
+  PROVIDED “AS IS” WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED, 
+  INCLUDING WITHOUT LIMITATION, ANY WARRANTY OF MERCHANTABILITY, TITLE, 
   NON-INFRINGEMENT AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT SHALL
   TEXAS INSTRUMENTS OR ITS LICENSORS BE LIABLE OR OBLIGATED UNDER CONTRACT,
   NEGLIGENCE, STRICT LIABILITY, CONTRIBUTION, BREACH OF WARRANTY, OR OTHER
@@ -34,11 +34,11 @@
   (INCLUDING BUT NOT LIMITED TO ANY DEFENSE THEREOF), OR OTHER SIMILAR COSTS.
 
   Should you have any questions regarding your right to use this Software,
-  contact Texas Instruments Incorporated at www.TI.com.
+  contact Texas Instruments Incorporated at www.TI.com. 
 **************************************************************************************************/
 
-#ifndef Ketamine_H
-#define Ketamine_H
+#ifndef SIMPLEKEYS_H
+#define SIMPLEKEYS_H
 
 #ifdef __cplusplus
 extern "C"
@@ -48,52 +48,79 @@ extern "C"
 /*********************************************************************
  * INCLUDES
  */
-#include "bcomdef.h"
-#include "peripheral.h"
+
 /*********************************************************************
  * CONSTANTS
  */
 
+// Profile Parameters
+#define SK_KEY_ATTR                   0  // RW uint8 - Profile Attribute value
+ 
+// SK Service UUID
+#define SK_SERV_UUID                  0xFFE0
+    
+// Key Pressed UUID
+#define SK_KEYPRESSED_UUID            0xFFE1
 
-// Simple BLE Peripheral Task Events
-#define KTM_START_DEVICE_EVT                              0x0001
-#define KTM_DEFAULT_EVT                                   0x0002
-#define KTM_PERIODIC_EVT                                  0x0004
-#define KTM_CHECKINTERRUPT_EVT                            0x0008
+// Key Values
+#define SK_KEY_LEFT                   0x01
+#define SK_KEY_RIGHT                  0x02
 
-   
-// State of ketamine process ID
-#define KTM_WAIT_BLOWER                                   0x0001
-#define KTM_SENSE_SALIVA                                  0x0002
-#define KTM_SENSE_COLOR                                   0x0003
-   
-// Picture taking modes
-#define KTM_PIC_PRECAPTURE                                0x01
-#define KTM_PIC_CAPTURE                                   0x02
+// Simple Keys Profile Services bit fields
+#define SK_SERVICE                    0x00000001
 
+/*********************************************************************
+ * TYPEDEFS
+ */
+
+  
+  
 /*********************************************************************
  * MACROS
  */
 
 /*********************************************************************
- * FUNCTIONS
+ * Profile Callbacks
  */
-  
-extern void OpenUART(void);
-extern void CloseUART(void);
-extern uint8 serialCameraState;
-extern uint8 waitCamera;
-extern uint8 globalState;
-extern gaprole_States_t gapProfileState;
-/*
- * Task Initialization for the BLE Application
+
+
+/*********************************************************************
+ * API FUNCTIONS 
  */
-extern void Ketamine_Init( uint8 task_id );
 
 /*
- * Task Event Processor for the BLE Application
+ * SK_AddService- Initializes the Simple Key service by registering
+ *          GATT attributes with the GATT server.
+ *
+ * @param   services - services to add. This is a bit map and can
+ *                     contain more than one service.
  */
-extern uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events );
+
+extern bStatus_t SK_AddService( uint32 services );
+  
+/*
+ * SK_SetParameter - Set a Simple Key Profile parameter.
+ *
+ *    param - Profile parameter ID
+ *    len - length of data to right
+ *    pValue - pointer to data to write.  This is dependent on
+ *          the parameter ID and WILL be cast to the appropriate 
+ *          data type (example: data type of uint16 will be cast to 
+ *          uint16 pointer).
+ */
+extern bStatus_t SK_SetParameter( uint8 param, uint8 len, void *pValue );
+  
+/*
+ * SK_GetParameter - Get a Simple Key Profile parameter.
+ *
+ *    param - Profile parameter ID
+ *    pValue - pointer to data to write.  This is dependent on
+ *          the parameter ID and WILL be cast to the appropriate 
+ *          data type (example: data type of uint16 will be cast to 
+ *          uint16 pointer).
+ */
+extern bStatus_t SK_GetParameter( uint8 param, void *pValue );
+
 
 /*********************************************************************
 *********************************************************************/
@@ -102,4 +129,4 @@ extern uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events );
 }
 #endif
 
-#endif /* Ketamine_H */
+#endif /* SIMPLEKEYS_H */

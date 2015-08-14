@@ -149,21 +149,25 @@
  * LOCAL VARIABLES
  */
 static uint8 Ketamine_TaskID;   // Task ID for internal task/event processing
-static gaprole_States_t gapProfileState = GAPROLE_INIT;
+gaprole_States_t gapProfileState = GAPROLE_INIT;
 
 // GAP - SCAN RSP data (max size = 31 bytes)
 static uint8 scanRspData[] =
 {
   // complete name
-  0x08,   // length of this data
+  0x0C,   // length of this data
   GAP_ADTYPE_LOCAL_NAME_COMPLETE,
-  0x6b,   // 'k'
+  0x42,   // 'B'
+  0x69,   // 'i'
+  0x6f,   // 'o'
+  0x53,   // 'S'
+  0x63,   // 'c'
+  0x6f,   // 'o'
+  0x70,   // 'p'
   0x65,   // 'e'
-  0x74,   // 't'
-  0x5f,   // '-'
+  0x5f,   // '_'
   0x30,   // '0'
-  0x30,   // '0'
-  0x35,   // '3'
+  0x31,   // '1'
 
   // connection interval range
   0x05,   // length of this data
@@ -207,7 +211,7 @@ static bool isAwake = false;
 static bool directTerminate = false;
 static uint8 isLowPower = 0;
 
-static uint8 version = 16;
+static uint8 version = 0;
 static int advMax = 600;
 static int globalMax = 300;
 
@@ -238,9 +242,7 @@ static void stopCheckTask( void );
 static void simpleProfileChangeCB( uint8 paramID );
 static void systemWakeUp( void );
 static void systemSleep( void );
-static void takePicture(uint8 mode);
 void initialParameter(void);
-void getPictureData(uint16 pktIdx);
 void parseBLECmd(uint8 value);
 
 static void Ketamine_HandleKeys( uint8 shift, uint8 keys );
@@ -588,9 +590,9 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
       }
       else{
         if(isAwake == true){
-          if(globalState != 6 && globalState != 3 && globalState != 2 && globalState != 7){
+          //if(globalState != 6 && globalState != 3 && globalState != 2 && globalState != 7){
             systemSleep();
-          }
+          //}
         }
         else{
           systemWakeUp();
@@ -785,8 +787,6 @@ static void performPeriodicTask( void )
     HalUARTInit(); 
     NPI_InitTransport(cSerialPacketParser);
     P1_3 = 1;
-    ST_HAL_DELAY(1250);  
-    takePicture(KTM_PIC_PRECAPTURE);
     break;
   } 
   
@@ -811,17 +811,12 @@ static void performPeriodicTask( void )
     HalUARTInit(); 
     NPI_InitTransport(cSerialPacketParser);
     P1_3 = 1;
-    ST_HAL_DELAY(1250);
-    takePicture(KTM_PIC_CAPTURE); 
     break;
   }
   case 7:{
     HalUARTSuspend();
     osal_pwrmgr_device(PWRMGR_BATTERY);
     P1_3 = 0;
-    HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
-    ST_HAL_DELAY(1000);
-    HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );
     break;
   }
   case 8:{
@@ -872,14 +867,6 @@ static void defaultCheckTask( void ){
     }
   }
   else{
-    if(gapProfileState == GAPROLE_CONNECTED ){
-      buf[0] = globalState; // For debug
-      buf[1] = isLowPower;
-      buf[2] = serialCameraState;
-      sendReadBuf(&noti, buf, 3, 0xFA);
-    }
-    globalState = 1;
-    SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
     HalLedSet( HAL_LED_4, HAL_LED_MODE_OFF);
   }
   
@@ -993,7 +980,7 @@ static void simpleProfileChangeCB( uint8 paramID )
       break;
   }
   default:{
-      // should not reach here!
+    // should not reach here!
     break;
   }
   }
@@ -1056,139 +1043,6 @@ void parseBLECmd(uint8 value){
 //  }
 }
 
-static void takePicture(uint8 mode){
-  attHandleValueNoti_t noti;
-  uint8 buf[20];
-  
-  switch (serialCameraState){
-    case 0:{
-      osal_pwrmgr_device(PWRMGR_ALWAYS_ON);
-      switch(mode){
-      case KTM_PIC_PRECAPTURE:{
-        HalLedSet(HAL_LED_2, HAL_LED_MODE_ON);
-        HalLedSet(HAL_LED_1, HAL_LED_MODE_OFF);
-        break;
-      }
-      case KTM_PIC_CAPTURE:
-      default:{
-        HalLedSet(HAL_LED_1, HAL_LED_MODE_ON);
-        HalLedSet(HAL_LED_2, HAL_LED_MODE_OFF);
-        break;
-      }
-      }
-      
-      uint8 cmd[] = {0xaa,0x0d|cameraAddr,0x00,0x00,0x00,0x00};
-      clearRxBuf();
-      sendCmd(cmd, 6);
-      break;
-    }
-    case 0x10:{
-      uint8 cmd[] = { 0xaa, 0x01 | cameraAddr, 0x00, 0x07, 0x00, PIC_FMT };
-      clearRxBuf();
-      sendCmd(cmd, 6);
-      break;
-    }
-    case 0x20:{
-      uint8 cmd[] = { 0xaa, 0x06 | cameraAddr, 0x08, PIC_PKT_LEN & 0xff, (PIC_PKT_LEN>>8) & 0xff ,0};
-      clearRxBuf();
-      sendCmd(cmd, 6);
-      break;
-    }
-    case 0x21:{
-      uint8 cmd[] = { 0xaa, 0x05 | cameraAddr, 0, 0, 0, 0};
-      clearRxBuf();
-      sendCmd(cmd, 6);
-      break;
-    }
-    case 0x22:{
-      uint8 cmd[] = { 0xaa, 0x04 | cameraAddr, 0x1, 0, 0, 0};
-      clearRxBuf();
-      sendCmd(cmd, 6);
-      break;
-    }
-    case 0x23:{
-      break;
-    }
-    case 0x24:{
-      HalLedSet(HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF);
-      if(waitBLEAck == 5){
-        serialCameraState = 0x30;
-        waitBLEAck = 0;
-      }
-      else{
-        notifyPicInfo();
-      }
-      break;
-    }
-    case 0x30:{
-      if(tmpPktIdx < pktCnt){
-        getPictureData(tmpPktIdx);                              // If pkt is received, tmpPktIdx++
-      }
-      
-      if(tmpPktIdx == pktCnt-1){
-        isLastPkt = 1;
-      }
-      else if(tmpPktIdx == pktCnt){
-        sendReadBuf(&noti, buf, 0, 0xA9);
-        serialCameraState = 0x31;
-        isLastPkt = 0;
-        waitCamera = 0;
-        if( retransmitSize != 0 ){
-          tmpRetransmitIdx = 0;
-          tmpPktIdx = retransmitBuf[0];
-          if(tmpPktIdx == pktCnt-1){
-            isLastPkt = 1;
-          }
-        }
-      }
-      else{
-        isLastPkt = 0;
-      }
-     
-      break;
-    }
-    case 0x31:{        
-      if(retransmitSize != 0){
-        if(tmpRetransmitIdx < retransmitSize){
-          if(tmpPktIdx == pktCnt-1){
-            isLastPkt = 1;
-          }
-          else{
-            isLastPkt = 0;
-          }
-          getPictureData(tmpPktIdx);
-        }
-        else{
-          sendReadBuf(&noti, buf, 0, 0xA9);
-          retransmitSize = 0;
-          tmpRetransmitIdx = 0;
-        }
-      }
-    
-      waitCamera++;
-      waitCamera %= 20;
-      if(waitCamera == 19){
-        //waitBLEAck = 0;
-        waitCamera = 0;
-        globalState = 7;
-        SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
-        serialCameraState = 0;
-      }
-      
-      break;
-    }
-  }
-}
-
-void getPictureData(uint16 pktIdx){
-  uint8 cmd[] = { 0xaa, 0x0e | cameraAddr, 0x00, 0x00, 0x00, 0x00 };
-  cmd[4] = pktIdx & 0xff;
-  cmd[5] = (pktIdx >> 8) & 0xff;
-          
-  clearRxBuf();
-  pktRxByteOffset = 0;
-  sendCmd(cmd, 6);
-}
 
 static void stopPeriodicTask( void ){
   uint8 result = osal_stop_timerEx(Ketamine_TaskID, KTM_PERIODIC_EVT);

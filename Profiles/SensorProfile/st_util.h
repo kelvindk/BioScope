@@ -1,12 +1,12 @@
 /**************************************************************************************************
-  Filename:       Ketamin.h
-  Revised:        $Date: 2010-08-01 14:03:16 -0700 (Sun, 01 Aug 2010) $
-  Revision:       $Revision: 23256 $
+  Filename:       st_util.h
+  Revised:        $Date: 2013-09-24 07:55:13 -0700 (Tue, 24 Sep 2013) $
+  Revision:       $Revision: 35432 $
 
-  Description:    This file contains the Simple BLE Peripheral sample application
-                  definitions and prototypes.
+  Description:    Utilties for Sensor Tag services
 
-  Copyright 2010 - 2011 Texas Instruments Incorporated. All rights reserved.
+
+  Copyright 2012 - 2013 Texas Instruments Incorporated. All rights reserved.
 
   IMPORTANT: Your use of this Software is limited to those specific rights
   granted under the terms of a software license agreement between the user
@@ -37,69 +37,72 @@
   contact Texas Instruments Incorporated at www.TI.com.
 **************************************************************************************************/
 
-#ifndef Ketamine_H
-#define Ketamine_H
-
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
-/*********************************************************************
- * INCLUDES
- */
-#include "bcomdef.h"
-#include "peripheral.h"
-/*********************************************************************
- * CONSTANTS
- */
-
-
-// Simple BLE Peripheral Task Events
-#define KTM_START_DEVICE_EVT                              0x0001
-#define KTM_DEFAULT_EVT                                   0x0002
-#define KTM_PERIODIC_EVT                                  0x0004
-#define KTM_CHECKINTERRUPT_EVT                            0x0008
-
-   
-// State of ketamine process ID
-#define KTM_WAIT_BLOWER                                   0x0001
-#define KTM_SENSE_SALIVA                                  0x0002
-#define KTM_SENSE_COLOR                                   0x0003
-   
-// Picture taking modes
-#define KTM_PIC_PRECAPTURE                                0x01
-#define KTM_PIC_CAPTURE                                   0x02
+#ifndef ST_UTIL_H
+#define ST_UTIL_H
 
 /*********************************************************************
  * MACROS
  */
+#ifdef GATT_TI_UUID_128_BIT
 
-/*********************************************************************
- * FUNCTIONS
- */
-  
-extern void OpenUART(void);
-extern void CloseUART(void);
-extern uint8 serialCameraState;
-extern uint8 waitCamera;
-extern uint8 globalState;
-extern gaprole_States_t gapProfileState;
-/*
- * Task Initialization for the BLE Application
- */
-extern void Ketamine_Init( uint8 task_id );
+// TI Base 128-bit UUID: F000XXXX-0451-4000-B000-000000000000
+#define TI_UUID_SIZE        ATT_UUID_SIZE
+#define TI_UUID(uuid)       TI_BASE_UUID_128(uuid)
 
-/*
- * Task Event Processor for the BLE Application
- */
-extern uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events );
+#else
 
-/*********************************************************************
-*********************************************************************/
+// Using 16-bit UUID
+#define TI_UUID_SIZE        ATT_BT_UUID_SIZE
+#define TI_UUID(uuid)       LO_UINT16(uuid), HI_UINT16(uuid)
 
-#ifdef __cplusplus
-}
 #endif
 
-#endif /* Ketamine_H */
+// Profile Parameters
+#define SENSOR_DATA               0       // RN uint8 - Profile Attribute value
+#define SENSOR_CONF               1       // RW uint8 - Profile Attribute value
+#define SENSOR_PERI               2       // RW uint8 - Profile Attribute value
+#define SENSOR_CALB               3       // RW uint8 - Profile Attribute value
+
+// Data readout periods (range 100 - 2550 ms)
+#define SENSOR_MIN_UPDATE_PERIOD        100 // Minimum 100 milliseconds
+#define SENSOR_PERIOD_RESOLUTION         10 // Resolution 10 milliseconds
+
+// Common values for turning a sensor on and off + config/status
+#define ST_CFG_SENSOR_DISABLE                 0x00
+#define ST_CFG_SENSOR_ENABLE                  0x01
+#define ST_CFG_CALIBRATE                      0x02
+#define ST_CFG_ERROR                          0xFF
+
+
+/*********************************************************************
+ * Profile Callbacks
+ */
+
+// Callback when a characteristic value has changed
+typedef void (*sensorChange_t)( uint8 paramID );
+
+typedef struct
+{
+  sensorChange_t        pfnSensorChange;  // Called when characteristic value changes
+} sensorCBs_t;
+
+
+/*-------------------------------------------------------------------
+ * FUNCTIONS
+ */
+
+/*********************************************************************
+ * @fn      utilExtractUuid16
+ *
+ * @brief   Extracts a 16-bit UUID from a GATT attribute
+ *
+ * @param   pAttr - pointer to attribute
+ *
+ * @param   pValue - pointer to UUID to be extracted
+ *
+ * @return  Success or Failure
+ */
+bStatus_t utilExtractUuid16(gattAttribute_t *pAttr, uint16 *pValue);
+
+#endif /* ST_UTIL_H */
+

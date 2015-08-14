@@ -1,12 +1,12 @@
 /**************************************************************************************************
-  Filename:       Ketamin.h
-  Revised:        $Date: 2010-08-01 14:03:16 -0700 (Sun, 01 Aug 2010) $
-  Revision:       $Revision: 23256 $
+  Filename:       oad_target.h
+  Revised:        $Date: 2012-11-16 18:39:26 -0800 (Fri, 16 Nov 2012) $
+  Revision:       $Revision: 32218 $
 
-  Description:    This file contains the Simple BLE Peripheral sample application
-                  definitions and prototypes.
+  Description:    This file contains OAD Target header file.
 
-  Copyright 2010 - 2011 Texas Instruments Incorporated. All rights reserved.
+
+  Copyright 2012 Texas Instruments Incorporated. All rights reserved.
 
   IMPORTANT: Your use of this Software is limited to those specific rights
   granted under the terms of a software license agreement between the user
@@ -36,9 +36,8 @@
   Should you have any questions regarding your right to use this Software,
   contact Texas Instruments Incorporated at www.TI.com.
 **************************************************************************************************/
-
-#ifndef Ketamine_H
-#define Ketamine_H
+#ifndef OAD_TARGET_H
+#define OAD_TARGET_H
 
 #ifdef __cplusplus
 extern "C"
@@ -48,52 +47,65 @@ extern "C"
 /*********************************************************************
  * INCLUDES
  */
-#include "bcomdef.h"
-#include "peripheral.h"
+
+#include "hal_aes.h"
+#include "hal_types.h"
+
 /*********************************************************************
  * CONSTANTS
  */
 
+#if !defined OAD_IMG_A_PAGE
+#define OAD_IMG_A_PAGE        1
+#define OAD_IMG_A_AREA        62
+#endif
 
-// Simple BLE Peripheral Task Events
-#define KTM_START_DEVICE_EVT                              0x0001
-#define KTM_DEFAULT_EVT                                   0x0002
-#define KTM_PERIODIC_EVT                                  0x0004
-#define KTM_CHECKINTERRUPT_EVT                            0x0008
+#if !defined OAD_IMG_B_PAGE
+// Image-A/B can be very differently sized areas when implementing BIM vice OAD boot loader.
+#if defined FEATURE_OAD_BIM
+#define OAD_IMG_B_PAGE        8
+#else
+#define OAD_IMG_B_PAGE        63
+#endif
+#define OAD_IMG_B_AREA       (124 - OAD_IMG_A_AREA)
+#endif
 
-   
-// State of ketamine process ID
-#define KTM_WAIT_BLOWER                                   0x0001
-#define KTM_SENSE_SALIVA                                  0x0002
-#define KTM_SENSE_COLOR                                   0x0003
-   
-// Picture taking modes
-#define KTM_PIC_PRECAPTURE                                0x01
-#define KTM_PIC_CAPTURE                                   0x02
+#if defined HAL_IMAGE_B
+#define OAD_IMG_D_PAGE        OAD_IMG_A_PAGE
+#define OAD_IMG_D_AREA        OAD_IMG_A_AREA
+#define OAD_IMG_R_PAGE        OAD_IMG_B_PAGE
+#define OAD_IMG_R_AREA        OAD_IMG_B_AREA
+#else   //#elif defined HAL_IMAGE_A or a non-BIM-enabled OAD Image-A w/ constants in Bank 1 vice 5.
+#define OAD_IMG_D_PAGE        OAD_IMG_B_PAGE
+#define OAD_IMG_D_AREA        OAD_IMG_B_AREA
+#define OAD_IMG_R_PAGE        OAD_IMG_A_PAGE
+#define OAD_IMG_R_AREA        OAD_IMG_A_AREA
+#endif
 
 /*********************************************************************
  * MACROS
  */
 
 /*********************************************************************
- * FUNCTIONS
+ * GLOBAL VARIABLES
  */
-  
-extern void OpenUART(void);
-extern void CloseUART(void);
-extern uint8 serialCameraState;
-extern uint8 waitCamera;
-extern uint8 globalState;
-extern gaprole_States_t gapProfileState;
-/*
- * Task Initialization for the BLE Application
- */
-extern void Ketamine_Init( uint8 task_id );
 
-/*
- * Task Event Processor for the BLE Application
+// OAD Image Header
+extern const __code img_hdr_t _imgHdr;
+
+/*********************************************************************
+ * TYPEDEFS
  */
-extern uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events );
+
+/*********************************************************************
+ * @fn      OADTarget_AddService
+ *
+ * @brief   Initializes the OAD Service by registering GATT attributes
+ *          with the GATT server. Only call this function once.
+ *
+ * @return  Success or Failure
+ */
+bStatus_t OADTarget_AddService( void );
 
 /*********************************************************************
 *********************************************************************/
@@ -102,4 +114,4 @@ extern uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events );
 }
 #endif
 
-#endif /* Ketamine_H */
+#endif /* OAD_TARGET_H */
