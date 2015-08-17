@@ -1,5 +1,5 @@
 /**************************************************************************************************
-  Filename:       Ketamine.c
+  Filename:       BioScope.c
   Revised:        $Date: 2010-08-06 08:56:11 -0700 (Fri, 06 Aug 2010) $
   Revision:       $Revision: 23333 $
 
@@ -72,7 +72,7 @@
 
 #include "peripheral.h"
 #include "gapbondmgr.h"
-#include "Ketamine.h"
+#include "BioScope.h"
 #include "serialInterface.h"
 
 #if defined FEATURE_OAD
@@ -89,11 +89,11 @@
  */
 
 // How often to perform periodic event
-#define KTM_BROADCAST_EVT_PERIOD                        500
-#define KTM_PERIODIC_EVT_PERIOD                         1000
-#define KTM_DEFAULT_EVT_PERIOD                          1000
-#define KTM_CHECKINTERRUPT_PEROID                       250
-#define KTM_SENDDATA_PERIOD                             400
+#define BIO_BROADCAST_EVT_PERIOD                        500
+#define BIO_PERIODIC_EVT_PERIOD                         1000
+#define BIO_DEFAULT_EVT_PERIOD                          1000
+#define BIO_CHECKINTERRUPT_PEROID                       250
+#define BIO_SENDDATA_PERIOD                             400
 
 // What is the advertising interval when device is discoverable (units of 625us, 160=100ms)
 #define DEFAULT_ADVERTISING_INTERVAL          160
@@ -148,7 +148,7 @@
 /*********************************************************************
  * LOCAL VARIABLES
  */
-static uint8 Ketamine_TaskID;   // Task ID for internal task/event processing
+static uint8 BioScope_TaskID;   // Task ID for internal task/event processing
 gaprole_States_t gapProfileState = GAPROLE_INIT;
 
 // GAP - SCAN RSP data (max size = 31 bytes)
@@ -233,7 +233,7 @@ uint8 waitCamera = 0;
 /*********************************************************************
  * LOCAL FUNCTIONS
  */
-static void Ketamine_ProcessOSALMsg( osal_event_hdr_t *pMsg );
+static void BioScope_ProcessOSALMsg( osal_event_hdr_t *pMsg );
 static void peripheralStateNotificationCB( gaprole_States_t newState );
 static void performPeriodicTask( void );
 static void defaultCheckTask( void );
@@ -242,10 +242,9 @@ static void stopCheckTask( void );
 static void simpleProfileChangeCB( uint8 paramID );
 static void systemWakeUp( void );
 static void systemSleep( void );
-void initialParameter(void);
-void parseBLECmd(uint8 value);
+static void initialParameter(void);
 
-static void Ketamine_HandleKeys( uint8 shift, uint8 keys );
+static void BioScope_HandleKeys( uint8 shift, uint8 keys );
 
 
 /*********************************************************************
@@ -253,21 +252,21 @@ static void Ketamine_HandleKeys( uint8 shift, uint8 keys );
  */
 
 // GAP Role Callbacks
-static gapRolesCBs_t Ketamine_PeripheralCBs =
+static gapRolesCBs_t BioScope_PeripheralCBs =
 {
   peripheralStateNotificationCB,  // Profile State Change Callbacks
   NULL                            // When a valid RSSI is read from controller (not used by application)
 };
 
 // GAP Bond Manager Callbacks
-static gapBondCBs_t Ketamine_BondMgrCBs =
+static gapBondCBs_t BioScope_BondMgrCBs =
 {
   NULL,                     // Passcode callback (not used by application)
   NULL                      // Pairing / Bonding state Callback (not used by application)
 };
 
 // Simple GATT Profile Callbacks
-static simpleProfileCBs_t Ketamine_SimpleProfileCBs =
+static simpleProfileCBs_t BioScope_SimpleProfileCBs =
 {
   simpleProfileChangeCB    // Charactersitic value change callback
 };
@@ -276,7 +275,7 @@ static simpleProfileCBs_t Ketamine_SimpleProfileCBs =
  */
 
 /*********************************************************************
- * @fn      Ketamine_Init
+ * @fn      BioScope_Init
  *
  * @brief   Initialization function for the Simple BLE Peripheral App Task.
  *          This is called during initialization and should contain
@@ -289,9 +288,9 @@ static simpleProfileCBs_t Ketamine_SimpleProfileCBs =
  *
  * @return  none
  */
-void Ketamine_Init( uint8 task_id )
+void BioScope_Init( uint8 task_id )
 {
-  Ketamine_TaskID = task_id;
+  BioScope_TaskID = task_id;
 
   // Setup the GAP
   VOID GAP_SetParamValue( TGAP_CONN_PAUSE_PERIPHERAL, DEFAULT_CONN_PAUSE_PERIPHERAL );
@@ -400,10 +399,10 @@ void Ketamine_Init( uint8 task_id )
   HalLedSet( (HAL_LED_1 | HAL_LED_2), HAL_LED_MODE_ON );
 
   // Register for all key events - This app will handle all key events
-  RegisterForKeys( Ketamine_TaskID );
+  RegisterForKeys( BioScope_TaskID );
 
   // Register callback with SimpleGATTprofile
-  VOID SimpleProfile_RegisterAppCBs( &Ketamine_SimpleProfileCBs );
+  VOID SimpleProfile_RegisterAppCBs( &BioScope_SimpleProfileCBs );
 
   // Enable clock divide on halt
   // This reduces active current while radio is active and CC254x MCU
@@ -425,11 +424,11 @@ void Ketamine_Init( uint8 task_id )
 //  HCI_EXT_HaltDuringRfCmd(HCI_EXT_HALT_DURING_RF_DISABLE);
   
   // Setup a delayed profile startup
-  osal_set_event( Ketamine_TaskID, KTM_START_DEVICE_EVT );
+  osal_set_event( BioScope_TaskID, BIO_START_DEVICE_EVT );
 }
 
 /*********************************************************************
- * @fn      Ketamine_ProcessEvent
+ * @fn      BioScope_ProcessEvent
  *
  * @brief   Simple BLE Peripheral Application Task event processor.  This function
  *          is called to process all events for the task.  Events
@@ -441,7 +440,7 @@ void Ketamine_Init( uint8 task_id )
  *
  * @return  events not processed
  */
-uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
+uint16 BioScope_ProcessEvent( uint8 task_id, uint16 events )
 {
 
   VOID task_id; // OSAL required parameter that isn't used in this function
@@ -450,9 +449,9 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
   {
     uint8 *pMsg;
 
-    if ( (pMsg = osal_msg_receive( Ketamine_TaskID )) != NULL )
+    if ( (pMsg = osal_msg_receive( BioScope_TaskID )) != NULL )
     {
-      Ketamine_ProcessOSALMsg( (osal_event_hdr_t *)pMsg );
+      BioScope_ProcessOSALMsg( (osal_event_hdr_t *)pMsg );
 
       // Release the OSAL message
       VOID osal_msg_deallocate( pMsg );
@@ -462,67 +461,58 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
     return (events ^ SYS_EVENT_MSG);
   }
 
-  if ( events & KTM_START_DEVICE_EVT )
+  if ( events & BIO_START_DEVICE_EVT )
   {
     // Start the Device
-    VOID GAPRole_StartDevice( &Ketamine_PeripheralCBs );
+    VOID GAPRole_StartDevice( &BioScope_PeripheralCBs );
 
     // Start Bond Manager
-    VOID GAPBondMgr_Register( &Ketamine_BondMgrCBs );
+    VOID GAPBondMgr_Register( &BioScope_BondMgrCBs );
     
     isAwake = true;
-    osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_BROADCAST_EVT_PERIOD);
-    osal_set_event( Ketamine_TaskID, KTM_DEFAULT_EVT);
+    osal_start_timerEx( BioScope_TaskID, BIO_PERIODIC_EVT, BIO_BROADCAST_EVT_PERIOD);
+    osal_set_event( BioScope_TaskID, BIO_DEFAULT_EVT);
     
     HalLedSet( HAL_LED_1| HAL_LED_2| HAL_LED_3| HAL_LED_4, HAL_LED_MODE_OFF );
 
-    return ( events ^ KTM_START_DEVICE_EVT );
+    return ( events ^ BIO_START_DEVICE_EVT );
   }
 
-  if ( events & KTM_DEFAULT_EVT ){
+  if ( events & BIO_DEFAULT_EVT ){
     defaultCheckTask();
-    osal_start_timerEx( Ketamine_TaskID, KTM_DEFAULT_EVT, KTM_DEFAULT_EVT_PERIOD);
-    return (events ^ KTM_DEFAULT_EVT);
+    osal_start_timerEx( BioScope_TaskID, BIO_DEFAULT_EVT, BIO_DEFAULT_EVT_PERIOD);
+    return (events ^ BIO_DEFAULT_EVT);
   }
   
-  if ( events & KTM_PERIODIC_EVT )
+  if ( events & BIO_PERIODIC_EVT )
   {
     if( gapProfileState != GAPROLE_CONNECTED )
     {
+      advCount = advCount + 1;
+      HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
+      ST_HAL_DELAY(1000);
+      HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
+      
       if(resetFlag == true){
         initialParameter();
         resetFlag = false;
       }
       
-      if(directTerminate == true){
-        initialParameter();   // 7/26
-        directTerminate = false;
-        uint8 disabled = FALSE;
-        GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &disabled );
-        stopCheckTask();
-        HalLedSet( HAL_LED_1| HAL_LED_2| HAL_LED_3| HAL_LED_4, HAL_LED_MODE_OFF );
-        isAwake = false;  
-        InitBoard( OB_READY );
-        return (events ^ KTM_PERIODIC_EVT);
-      }
-   
-      advCount = advCount + 1;
-//      HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
-//      ST_HAL_DELAY(1000);
-//      HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
-      
-      if(advCount >= advMax){
-        // DEBUG
+      if(directTerminate == true || advCount >= advMax){
         initialParameter();
+        directTerminate = false;
         HalLedSet( HAL_LED_1| HAL_LED_2| HAL_LED_3| HAL_LED_4, HAL_LED_MODE_OFF );
         advCount = 0;
-        //globalState = 1;
+        
+        HalUARTSuspend();
+        osal_pwrmgr_device(PWRMGR_BATTERY);
+        
         uint8 disabled = FALSE;
-        GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &disabled );
+        GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &disabled);
         stopCheckTask();
-        isAwake = false;
+        isAwake = false;  
         InitBoard( OB_READY );
-        return (events ^ KTM_PERIODIC_EVT);
+        return (events ^ BIO_PERIODIC_EVT);
       }
       
       uint8 current_adv_enabled_status;
@@ -534,42 +524,35 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
       if( current_adv_enabled_status == FALSE )
       {
         new_adv_enabled_status = TRUE;
-        if ( KTM_PERIODIC_EVT_PERIOD )
+        if ( BIO_PERIODIC_EVT_PERIOD )
         {
-          osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_BROADCAST_EVT_PERIOD );
+          osal_start_timerEx( BioScope_TaskID, BIO_PERIODIC_EVT, BIO_BROADCAST_EVT_PERIOD );
         }
       }
       else
       {
         new_adv_enabled_status = FALSE;
-        if ( KTM_PERIODIC_EVT_PERIOD )
+        if ( BIO_PERIODIC_EVT_PERIOD )
         {
-          osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_BROADCAST_EVT_PERIOD/10  ); // adjust duty cycle 8000
+          osal_start_timerEx( BioScope_TaskID, BIO_PERIODIC_EVT, BIO_BROADCAST_EVT_PERIOD/10  ); // adjust duty cycle 8000
         }
       }
       //change the GAP advertisement status to opposite of current status
       GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &new_adv_enabled_status );
     }
     
-    
     // Restart timer
-    else if( KTM_PERIODIC_EVT_PERIOD )
+    else if( BIO_PERIODIC_EVT_PERIOD )
     {
       advCount = 0;
       performPeriodicTask();
-      if((globalState == 6 || globalState == 3) && (serialCameraState == 0x30 || serialCameraState == 0x31)){
-        osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_SENDDATA_PERIOD);
-      }
-      else{
-        osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_PERIODIC_EVT_PERIOD);  // adjust duty cycle
-      }
+      osal_start_timerEx( BioScope_TaskID, BIO_PERIODIC_EVT, BIO_PERIODIC_EVT_PERIOD);
     }
 
-    return (events ^ KTM_PERIODIC_EVT);
+    return (events ^ BIO_PERIODIC_EVT);
   }
-  if ( events & KTM_CHECKINTERRUPT_EVT){
-    HalAdcInit ();
-    HalAdcSetReference (HAL_ADC_REF_AVDD);
+  
+  if ( events & BIO_CHECKINTERRUPT_EVT){
     uint16 adcvalue = HalAdcRead (HAL_ADC_CHANNEL_0, HAL_ADC_RESOLUTION_8);
 //    if(gapProfileState == GAPROLE_CONNECTED){
 //      uint8 buf[2];
@@ -580,37 +563,32 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
 //    }
     if(adcvalue > 5){
       interruptCounter = 0;
-      InitBoard( OB_READY );
-      return (events ^ KTM_CHECKINTERRUPT_EVT);
     }
     else{
       interruptCounter++;
       if(interruptCounter < 2){
-        osal_start_timerEx( Ketamine_TaskID, KTM_CHECKINTERRUPT_EVT, KTM_CHECKINTERRUPT_PEROID);
+        osal_start_timerEx( BioScope_TaskID, BIO_CHECKINTERRUPT_EVT, BIO_CHECKINTERRUPT_PEROID);
       }
       else{
         if(isAwake == true){
-          //if(globalState != 6 && globalState != 3 && globalState != 2 && globalState != 7){
-            systemSleep();
-          //}
+          systemSleep();
         }
         else{
           systemWakeUp();
         }
         interruptCounter = 0;
       }
-      InitBoard( OB_READY );
-      return (events ^ KTM_CHECKINTERRUPT_EVT);
     }
+    InitBoard( OB_READY );
+    return (events ^ BIO_CHECKINTERRUPT_EVT);
   }
   
-
   // Discard unknown events
   return 0;
 }
 
 /*********************************************************************
- * @fn      Ketamine_ProcessOSALMsg
+ * @fn      BioScope_ProcessOSALMsg
  *
  * @brief   Process an incoming task message.
  *
@@ -618,12 +596,12 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
  *
  * @return  none
  */
-static void Ketamine_ProcessOSALMsg( osal_event_hdr_t *pMsg )
+static void BioScope_ProcessOSALMsg( osal_event_hdr_t *pMsg )
 {
   switch ( pMsg->event )
   {
     case KEY_CHANGE:
-      Ketamine_HandleKeys( ((keyChange_t *)pMsg)->state, ((keyChange_t *)pMsg)->keys );
+      BioScope_HandleKeys( ((keyChange_t *)pMsg)->state, ((keyChange_t *)pMsg)->keys );
       break;
 
   default:
@@ -633,7 +611,7 @@ static void Ketamine_ProcessOSALMsg( osal_event_hdr_t *pMsg )
 }
 
 /*********************************************************************
- * @fn      Ketamine_HandleKeys
+ * @fn      BioScope_HandleKeys
  *
  * @brief   Handles all key events for this device.
  *
@@ -644,12 +622,12 @@ static void Ketamine_ProcessOSALMsg( osal_event_hdr_t *pMsg )
  *
  * @return  none
  */
-static void Ketamine_HandleKeys( uint8 shift, uint8 keys )
+static void BioScope_HandleKeys( uint8 shift, uint8 keys )
 {
     interruptCounter = 0;
-    uint8 result =  osal_stop_timerEx(Ketamine_TaskID, KTM_CHECKINTERRUPT_EVT);
+    uint8 result =  osal_stop_timerEx(BioScope_TaskID, BIO_CHECKINTERRUPT_EVT);
     if(result == INVALID_EVENT_ID){
-      osal_start_timerEx( Ketamine_TaskID, KTM_CHECKINTERRUPT_EVT, KTM_CHECKINTERRUPT_PEROID);
+      osal_start_timerEx( BioScope_TaskID, BIO_CHECKINTERRUPT_EVT, BIO_CHECKINTERRUPT_PEROID);
     }
     InitBoard( OB_READY );
 }
@@ -749,7 +727,7 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
  * @fn      performPeriodicTask
  *
  * @brief   Perform a periodic application task. This function gets
- *          called every five seconds as a result of the KTM_PERIODIC_EVT
+ *          called every five seconds as a result of the BIO_PERIODIC_EVT
  *          OSAL event. In this example, the value of the third
  *          characteristic in the SimpleGATTProfile service is retrieved
  *          from the profile, and then copied into the value of the
@@ -775,8 +753,6 @@ static void performPeriodicTask( void )
     break;
   }
   case 2:{
-    //HalAdcInit ();                            Commented by Larry on 8/2
-    //HalAdcSetReference(HAL_ADC_REF_AVDD);
     uint16 adcvalue = HalAdcRead(HAL_ADC_CHANNEL_5, HAL_ADC_RESOLUTION_8);
     buf[0] = adcvalue & 0xFF;
     buf[1] = (adcvalue >> 8) & 0xFF;
@@ -784,7 +760,8 @@ static void performPeriodicTask( void )
     break;
   }
   case 3:{
-    HalUARTInit(); 
+    osal_pwrmgr_device( PWRMGR_ALWAYS_ON );
+    HalUARTInit();
     NPI_InitTransport(cSerialPacketParser);
     P1_3 = 1;
     break;
@@ -808,15 +785,14 @@ static void performPeriodicTask( void )
     break;
   }
   case 6:{
-    HalUARTInit(); 
-    NPI_InitTransport(cSerialPacketParser);
-    P1_3 = 1;
     break;
   }
   case 7:{
     HalUARTSuspend();
     osal_pwrmgr_device(PWRMGR_BATTERY);
-    P1_3 = 0;
+    globalState = 1;
+    SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
+    //P1_3 = 0;
     break;
   }
   case 8:{
@@ -845,30 +821,30 @@ static void defaultCheckTask( void ){
   HalAdcSetReference (HAL_ADC_REF_AVDD);
   uint16 adcvalue = HalAdcRead (HAL_ADC_CHANNEL_6, HAL_ADC_RESOLUTION_10);
   
-  if(eepResult == true ){
-    if(gapProfileState == GAPROLE_CONNECTED ){
-      buf[4] = globalState; // For debug
-      buf[5] = isLowPower;
-      //buf[6] = serialCameraState;
-      buf[6] = (globalCount & 0xFF);
-      buf[7] = ((globalCount >> 8) & 0xFF);
-      buf[8] = (advCount & 0xFF);
-      buf[9] = ((advCount >> 8) & 0xFF);
-      buf[10] = adcvalue & 0xFF;
-      buf[11] = (adcvalue >> 8) & 0xFF;
-      sendReadBuf(&noti, buf, 12, 0xFB);
-    }
-    
-    if( globalState == 2 || globalState == 3 || globalState == 6 || globalState == 7){
-      HalLedSet( HAL_LED_4, HAL_LED_MODE_TOGGLE );
-    }
-    else{
-      HalLedSet( HAL_LED_4 , HAL_LED_MODE_ON );
-    }
-  }
-  else{
-    HalLedSet( HAL_LED_4, HAL_LED_MODE_OFF);
-  }
+//  if(eepResult == true ){
+//    if(gapProfileState == GAPROLE_CONNECTED ){
+//      buf[4] = globalState; // For debug
+//      buf[5] = isLowPower;
+//      //buf[6] = serialCameraState;
+//      buf[6] = (globalCount & 0xFF);
+//      buf[7] = ((globalCount >> 8) & 0xFF);
+//      buf[8] = (advCount & 0xFF);
+//      buf[9] = ((advCount >> 8) & 0xFF);
+//      buf[10] = adcvalue & 0xFF;
+//      buf[11] = (adcvalue >> 8) & 0xFF;
+//      sendReadBuf(&noti, buf, 12, 0xFB);
+//    }
+//    
+//    if( globalState == 2 || globalState == 3 || globalState == 6 || globalState == 7){
+//      HalLedSet( HAL_LED_4, HAL_LED_MODE_TOGGLE );
+//    }
+//    else{
+//      HalLedSet( HAL_LED_4 , HAL_LED_MODE_ON );
+//    }
+//  }
+//  else{
+//    HalLedSet( HAL_LED_4, HAL_LED_MODE_OFF);
+//  }
   
   if(isAwake == true){
     if(globalState == 1 && adcvalue < 84){
@@ -889,7 +865,6 @@ static void defaultCheckTask( void ){
         lowPowerWarnCount++;
         HalLedSet( HAL_LED_3, HAL_LED_MODE_TOGGLE );
         if(lowPowerWarnCount > 30){
-          //systemSleep();
            if( gapProfileState == GAPROLE_CONNECTED )
            {
              GAPRole_TerminateConnection();
@@ -898,8 +873,9 @@ static void defaultCheckTask( void ){
            resetFlag = true; 
         }
       }
-      else
+      else{
         HalLedSet( HAL_LED_3 , HAL_LED_MODE_ON);
+      }
     }
     else{
       HalLedSet( HAL_LED_3 , HAL_LED_MODE_ON);
@@ -952,30 +928,16 @@ static void simpleProfileChangeCB( uint8 paramID )
   }
   case SIMPLEPROFILE_CHAR3:{
       SimpleProfile_GetParameter( SIMPLEPROFILE_CHAR3, &newValue );
-      parseBLECmd(newValue);
       break;
   }
   case SIMPLEPROFILE_CHAR6:{
       uint8 command[SIMPLEPROFILE_CHAR6_LEN];
       SimpleProfile_GetParameter( SIMPLEPROFILE_CHAR6, command);
       if(command[0] == 0xA1){
-        writeTestPaperId(command+1, 4);
       }
       else if(command[0] == 0xA3){
-        if(retransmitSize == 0){
-          retransmitSize = command[1];
-          tmpRetransmitIdx = 0;
-          int i;
-          for(i = 0; i < retransmitSize; i++){
-            retransmitBuf[i] = command[2+i];
-          }
-          if( serialCameraState == 0x31 ){
-            tmpPktIdx = retransmitBuf[0];
-            if(tmpPktIdx == pktCnt-1){
-              isLastPkt = 1;
-            }
-          }
-        }
+      }
+      else{
       }
       break;
   }
@@ -989,20 +951,25 @@ static void simpleProfileChangeCB( uint8 paramID )
 static void systemWakeUp( void ){
   stopCheckTask();
   stopPeriodicTask();
+  
   if(isAwake == false){
     initialParameter();
   }
+  
+  advCount = 0;
   lowPowerWarnCount = 0;
   gapProfileState = GAPROLE_INIT;
-  osal_set_event( Ketamine_TaskID, KTM_START_DEVICE_EVT );
-//  isAwake = true;
-//  osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_BROADCAST_EVT_PERIOD);
-//  osal_set_event( Ketamine_TaskID, KTM_DEFAULT_EVT);
+  osal_set_event( BioScope_TaskID, BIO_START_DEVICE_EVT );
 }
 
+
+/* Should not be called by defaultCheckTask(void)*/
 static void systemSleep( void ){
   HalLedSet( HAL_LED_1| HAL_LED_2| HAL_LED_3| HAL_LED_4, HAL_LED_MODE_OFF );
   stopCheckTask();
+  
+  HalUARTSuspend();  // Addded on 8/17
+  osal_pwrmgr_device(PWRMGR_BATTERY);
   
   if( gapProfileState == GAPROLE_CONNECTED )
   {
@@ -1022,38 +989,23 @@ static void systemSleep( void ){
 /*********************************************************************
 *********************************************************************/
 
-void initialParameter(void){
+static void initialParameter(void){
   globalState = 1;
   SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
   disconnectCnt = 0;
-  P1_3 = 0;
+  //P1_3 = 0;        
 }
-
-
-void parseBLECmd(uint8 value){
-  if( (value & 0xF0) == 0){
-    if(waitBLEAck != 0)
-      waitBLEAck = value;
-  }
-//  else{
-//    //requestDataFrom(value & 0x0F);
-//    tmpPktIdx = value & 0x0F;
-//    getPictureData(tmpPktIdx);
-//    //waitBLEAck = 0xF0;
-//  }
-}
-
 
 static void stopPeriodicTask( void ){
-  uint8 result = osal_stop_timerEx(Ketamine_TaskID, KTM_PERIODIC_EVT);
+  uint8 result = osal_stop_timerEx(BioScope_TaskID, BIO_PERIODIC_EVT);
   if(result == INVALID_EVENT_ID){
-    osal_clear_event(Ketamine_TaskID, KTM_PERIODIC_EVT);
+    osal_clear_event(BioScope_TaskID, BIO_PERIODIC_EVT);
   }
 }
 
 static void stopCheckTask( void ){
-  uint8 result = osal_stop_timerEx(Ketamine_TaskID, KTM_DEFAULT_EVT);
+  uint8 result = osal_stop_timerEx(BioScope_TaskID, BIO_DEFAULT_EVT);
   if(result == INVALID_EVENT_ID){
-    osal_clear_event(Ketamine_TaskID, KTM_DEFAULT_EVT);
+    osal_clear_event(BioScope_TaskID, BIO_DEFAULT_EVT);
   }
 }

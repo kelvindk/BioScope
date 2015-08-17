@@ -37,8 +37,8 @@
   contact Texas Instruments Incorporated at www.TI.com.
 **************************************************************************************************/
 
-#ifndef Ketamine_H
-#define Ketamine_H
+#ifndef BioScope_H
+#define BioScope_H
 
 #ifdef __cplusplus
 extern "C"
@@ -56,20 +56,17 @@ extern "C"
 
 
 // Simple BLE Peripheral Task Events
-#define KTM_START_DEVICE_EVT                              0x0001
-#define KTM_DEFAULT_EVT                                   0x0002
-#define KTM_PERIODIC_EVT                                  0x0004
-#define KTM_CHECKINTERRUPT_EVT                            0x0008
+#define BIO_START_DEVICE_EVT                              0x0001
+#define BIO_DEFAULT_EVT                                   0x0002
+#define BIO_PERIODIC_EVT                                  0x0004
+#define BIO_CHECKINTERRUPT_EVT                            0x0008
 
    
-// State of ketamine process ID
-#define KTM_WAIT_BLOWER                                   0x0001
-#define KTM_SENSE_SALIVA                                  0x0002
-#define KTM_SENSE_COLOR                                   0x0003
+// State of BioScope process
+#define BIO_IDLE                                          0x0001
+#define BIO_FETCH_DATA                                    0x0002
+#define BIO_DIRECT_DISCONNECT                                   0x0003
    
-// Picture taking modes
-#define KTM_PIC_PRECAPTURE                                0x01
-#define KTM_PIC_CAPTURE                                   0x02
 
 /*********************************************************************
  * MACROS
@@ -88,12 +85,12 @@ extern gaprole_States_t gapProfileState;
 /*
  * Task Initialization for the BLE Application
  */
-extern void Ketamine_Init( uint8 task_id );
+extern void BioScope_Init( uint8 task_id );
 
 /*
  * Task Event Processor for the BLE Application
  */
-extern uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events );
+extern uint16 BioScope_ProcessEvent( uint8 task_id, uint16 events );
 
 /*********************************************************************
 *********************************************************************/
@@ -102,4 +99,4 @@ extern uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events );
 }
 #endif
 
-#endif /* Ketamine_H */
+#endif /* BioScope_H */

@@ -1,6 +1,6 @@
 #include "hal_uart.h"
 #include "serialInterface.h"
-#include "Ketamine.h"
+#include "BioScope.h"
 #include "bcomdef.h"
 #include "hal_led.h"
 #include "hal_sensor.h"
@@ -79,7 +79,6 @@ static void SerialInterface_ProcessOSALMsg( osal_event_hdr_t *pMsg )
 
 void cSerialPacketParser( uint8 port, uint8 events )
 {
-  HalLedSet( HAL_LED_4, HAL_LED_MODE_TOGGLE );
   if((preamble) ) {
     if(pktRxByteOffset != 0) {
       numBytes = NPI_RxBufLen();
@@ -94,12 +93,11 @@ void cSerialPacketParser( uint8 port, uint8 events )
       }
     }
     if(pktRxByteOffset == 0) {
-//      HalLedSet( HAL_LED_1, HAL_LED_MODE_TOGGLE );
       // got sufficient bytes in a packet
 //      serialPacketHandler();
       if( gapProfileState == GAPROLE_CONNECTED )
       {
-        
+        HalLedSet( HAL_LED_2, HAL_LED_MODE_TOGGLE );
         (void)sendNotification((uint8 *)&pktBuf, pktLength+1);
       }
       preamble = FALSE;
@@ -112,19 +110,18 @@ void cSerialPacketParser( uint8 port, uint8 events )
   if(numBytes < 3)
     return;
    
-//   HalLedSet( HAL_LED_1, HAL_LED_MODE_TOGGLE );
-   (void)NPI_ReadTransport((uint8 *)&RxByte, 1);
-   if(RxByte != 0xFF)
-     return;
-   else{
-     (void)NPI_ReadTransport((uint8 *)&RxByte, 1);
-     if(RxByte != 0x7F)
-       return;
-     else { // Then handle the packet depending on type
+  (void)NPI_ReadTransport((uint8 *)&RxByte, 1);
+  if(RxByte != 0xFF)
+    return;
+  else{
+    (void)NPI_ReadTransport((uint8 *)&RxByte, 1);
+    if(RxByte != 0x7F)
+      return;
+    else { // Then handle the packet depending on type
               
-       (void)NPI_ReadTransport((uint8 *)&pktBuf, 1);
-       preamble = TRUE;
-       switch(pktBuf[0]) {
+      (void)NPI_ReadTransport((uint8 *)&pktBuf, 1);
+      preamble = TRUE;
+      switch(pktBuf[0]) {
         case 1: //ECG beat
           pktRxByteOffset = 1;
           break;
@@ -138,8 +135,8 @@ void cSerialPacketParser( uint8 port, uint8 events )
           preamble = FALSE;
        }
        pktLength = pktRxByteOffset;
-     }
-   }
+    }
+  }
 }
 
 uint8 sendNotification(uint8* bytes_sent, uint8 len)
